@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0a0f0d" />
+  <title>Reply | Shourya Lakhera</title>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      color-scheme: dark;
+      --bg: #0a0f0d;
+      --card: #131b18;
+      --border: #1f2a26;
+      --text: #e8f0ec;
+      --muted: #8a9d95;
+      --accent: #10b981;
+      --accent-2: #14b8a6;
+    }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      padding: 2rem 1rem;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.13), transparent 45%),
+        radial-gradient(circle at 80% 60%, rgba(20, 184, 166, 0.10), transparent 45%),
+        var(--bg);
+      color: var(--text);
+      font: 16px/1.6 Inter, system-ui, sans-serif;
+    }
+
+    .reply-card {
+      width: min(100%, 620px);
+      padding: clamp(1.25rem, 5vw, 2.5rem);
+      background: rgba(19, 27, 24, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+    }
+
+    a { color: var(--accent); }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 5vw, 2.2rem);
+      letter-spacing: -0.04em;
+    }
+
+    .intro, .recipient { color: var(--muted); }
+    .recipient { margin: 0.5rem 0 1.5rem; overflow-wrap: anywhere; }
+    .recipient strong { color: var(--text); }
+
+    .field { display: grid; gap: 0.45rem; margin-top: 1rem; }
+
+    label { color: var(--muted); font-size: 0.88rem; }
+
+    input, textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+
+    input:focus, textarea:focus {
+      outline: 2px solid rgba(16, 185, 129, 0.45);
+      border-color: var(--accent);
+    }
+
+    textarea { min-height: 190px; resize: vertical; }
+
+    button {
+      margin-top: 1.25rem;
+      padding: 0.85rem 1.3rem;
+      border: 0;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: #fff;
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    button:disabled { cursor: wait; opacity: 0.7; }
+    .status { min-height: 1.5em; margin: 1rem 0 0; font-size: 0.9rem; }
+    .status.success { color: #6ee7b7; }
+    .status.error { color: #fca5a5; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main class="reply-card">
+    <h1>Reply to message</h1>
+    <p class="intro">Write your reply below. It will be emailed directly to the sender.</p>
+    <p class="recipient" id="recipient"></p>
+
+    <form id="replyForm" hidden>
+      <div class="field">
+        <label for="subject">Subject</label>
+        <input id="subject" name="subject" type="text" required />
+      </div>
+      <div class="field">
+        <label for="message">Your reply</label>
+        <textarea id="message" name="message" required></textarea>
+      </div>
+      <button id="sendButton" type="submit">Send reply</button>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+    </form>
+    <p class="status error" id="invalidLink" role="alert" hidden>
+      This reply link is missing a valid client email address. Please open the reply link from the notification email.
+    </p>
+    <p><a href="/">Return to portfolio</a></p>
+  </main>
+
+  <script>
+    const EMAILJS_PUBLIC_KEY = "RMcDXVcYtFYAvmgtm";
+    const EMAILJS_SERVICE_ID = "service_8vtxt7g";
+    const EMAILJS_REPLY_TEMPLATE_ID = "template_g801tfj";
+    const REPLY_FROM_NAME = "Shourya Lakhera";
+
+    emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+
+    const query = new URLSearchParams(window.location.search);
+    const toEmail = (query.get('to_email') || '').trim();
+    const toName = (query.get('to_name') || '').trim();
+    const recipient = document.getElementById('recipient');
+    const form = document.getElementById('replyForm');
+    const invalidLink = document.getElementById('invalidLink');
+    const status = document.getElementById('status');
+    const sendButton = document.getElementById('sendButton');
+
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(toEmail)) {
+      recipient.innerHTML = `<strong>To:</strong> ${escapeHtml(toName || toEmail)} &lt;${escapeHtml(toEmail)}&gt;`;
+      form.hidden = false;
+      document.getElementById('subject').value = `Re: Portfolio message from ${toName || toEmail}`;
+    } else {
+      invalidLink.hidden = false;
+    }
+
+    function escapeHtml(value) {
+      return value.replace(/[&<>"']/g, character => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[character]);
+    }
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      status.textContent = '';
+      status.className = 'status';
+      sendButton.disabled = true;
+      sendButton.textContent = 'Sending...';
+
+      const formData = new FormData(form);
+      const sentTime = new Date().toLocaleString();
+      const messageParams = {
+        to_email: toEmail,
+        to_name: toName || toEmail,
+        from_name: REPLY_FROM_NAME,
+        from_email: 'shouryalakhera2609@gmail.com',
+        reply_to: "shouryalakhera2609@gmail.com",
+        subject: String(formData.get('subject')).trim(),
+        message: String(formData.get('message')).trim(),
+        sent_time: sentTime
+      };
+
+      try {
+        await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_REPLY_TEMPLATE_ID, messageParams);
+        status.textContent = `Reply sent to ${toEmail}.`;
+        status.classList.add('success');
+        form.reset();
+        document.getElementById('subject').value = `Re: Portfolio message from ${toName || toEmail}`;
+      } catch (error) {
+        console.error('The reply email could not be sent:', error);
+        status.textContent = 'Could not send the reply. Please try again.';
+        status.classList.add('error');
+      } finally {
+        sendButton.disabled = false;
+        sendButton.textContent = 'Send reply';
+      }
+    });
+  </script>
+</body>
+</html>
